@@ -1,0 +1,46 @@
+databases:
+  - name: pms-postgres
+    plan: free
+    databaseName: project_management
+    user: pms
+
+services:
+  - type: web
+    name: pms-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: DB_HOST
+        fromDatabase:
+          name: pms-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: pms-postgres
+          property: port
+      - key: DB_USERNAME
+        fromDatabase:
+          name: pms-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: pms-postgres
+          property: password
+      - key: DB_NAME
+        fromDatabase:
+          name: pms-postgres
+          property: database
+      - key: DB_SYNCHRONIZE
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 1d
