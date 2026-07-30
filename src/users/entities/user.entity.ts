@@ -9,6 +9,11 @@ import {
 } from "typeorm";
 import { Board } from "../../boards/entities/board.entity";
 
+export enum UserRole {
+  ADMIN = "admin",
+  USER = "user",
+}
+
 @Entity("users")
 export class User {
   @PrimaryGeneratedColumn("uuid")
@@ -23,6 +28,9 @@ export class User {
   @Exclude()
   @Column()
   password: string;
+
+  @Column({ type: "enum", enum: UserRole, default: UserRole.USER })
+  role: UserRole;
 
   @Column({ nullable: true })
   avatar?: string;

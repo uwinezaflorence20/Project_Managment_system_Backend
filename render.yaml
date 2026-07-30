@@ -44,3 +44,7 @@ services:
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 1d
+      - key: ADMIN_EMAIL
+        value: admin@pms.dev
+      - key: ADMIN_PASSWORD
+        sync: false

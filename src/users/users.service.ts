@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import * as bcrypt from "bcrypt";
-import { User } from "./entities/user.entity";
+import { User, UserRole } from "./entities/user.entity";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 
@@ -20,7 +20,12 @@ export class UsersService {
     private readonly usersRepository: Repository<User>,
   ) {}
 
-  async create(name: string, email: string, password: string): Promise<User> {
+  async create(
+    name: string,
+    email: string,
+    password: string,
+    role: UserRole = UserRole.USER,
+  ): Promise<User> {
     const existing = await this.findByEmail(email);
     if (existing) {
       throw new ConflictException("An account with this email already exists");
@@ -31,6 +36,7 @@ export class UsersService {
       name,
       email,
       password: hashedPassword,
+      role,
     });
     return this.usersRepository.save(user);
   }
