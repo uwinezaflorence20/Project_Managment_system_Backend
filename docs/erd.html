@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Project Management System — ERD</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --surface: #ffffff;
+    --surface-raised: #ffffff;
+    --ink: #1b2430;
+    --ink-soft: #45505f;
+    --muted: #6b7686;
+    --border: #dde3ea;
+    --border-soft: #e8ecf1;
+    --accent: #2f6f62;
+    --accent-soft: #e3efec;
+    --accent-ink: #1f4a41;
+    --fk: #8a5a2b;
+    --fk-soft: #f4ead9;
+    --uk: #3f5f8a;
+    --uk-soft: #e6ecf6;
+    --shadow: 0 1px 2px rgba(20, 30, 45, 0.06), 0 8px 24px -12px rgba(20, 30, 45, 0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #10151c;
+      --surface: #161d26;
+      --surface-raised: #1b2430;
+      --ink: #e7ebf0;
+      --ink-soft: #b6c0cc;
+      --muted: #8593a3;
+      --border: #2a3441;
+      --border-soft: #212a35;
+      --accent: #5fb8a3;
+      --accent-soft: #1c3530;
+      --accent-ink: #a6e2d2;
+      --fk: #d9a25f;
+      --fk-soft: #3a2f1e;
+      --uk: #8fb0e0;
+      --uk-soft: #212d42;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.6);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: ui-sans-serif, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, "Roboto Mono", monospace; }
+  .page { max-width: 1240px; margin: 0 auto; padding: 48px 28px 88px; }
+  header.doc-head { display: flex; flex-direction: column; gap: 10px; padding-bottom: 28px; margin-bottom: 36px; border-bottom: 1px solid var(--border); }
+  .eyebrow { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+  h1 { margin: 0; font-size: clamp(1.5rem, 2.4vw, 2.1rem); font-weight: 650; letter-spacing: -.01em; }
+  .doc-sub { margin: 0; color: var(--ink-soft); font-size: .98rem; max-width: 66ch; line-height: 1.55; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 4px; font-size: .8rem; color: var(--muted); }
+  .meta-row b { color: var(--ink-soft); font-weight: 600; }
+  section { margin-bottom: 44px; }
+  h2 { font-size: 1rem; font-weight: 650; margin: 0 0 4px; }
+  .section-note { margin: 0 0 16px; color: var(--muted); font-size: .85rem; max-width: 70ch; line-height: 1.5; }
+  .diagram-card { background: #ffffff; border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 18px; overflow-x: auto; }
+  .diagram-card svg { display: block; min-width: 900px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 18px 26px; margin-top: 14px; font-size: .8rem; color: var(--ink-soft); }
+  .legend .item { display: flex; align-items: center; gap: 7px; }
+  .legend .swatch { width: 13px; height: 13px; border-radius: 4px; flex: none; border: 1px solid var(--border); }
+  .swatch.pk { background: var(--accent-soft); border-color: var(--accent); }
+  .swatch.fk { background: var(--fk-soft); border-color: var(--fk); }
+  .swatch.uk { background: var(--uk-soft); border-color: var(--uk); }
+  .legend .line { width: 22px; height: 0; border-top: 2px solid #3a4653; display: inline-block; }
+  .legend .line.dashed { border-top: 2px dashed #93a0b0; }
+  .entity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
+  .entity-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+  .entity-card header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 12px 14px; background: var(--surface-raised); border-bottom: 1px solid var(--border-soft); }
+  .entity-card header .table-name { font-size: .88rem; font-weight: 650; }
+  .entity-card header .row-count { font-size: .7rem; color: var(--muted); }
+  .field-list { list-style: none; margin: 0; padding: 4px 0; }
+  .field-list li { display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: 8px; padding: 5px 14px; font-size: .78rem; }
+  .field-list li + li { border-top: 1px solid var(--border-soft); }
+  .tag { font-size: .6rem; font-weight: 700; letter-spacing: .03em; padding: 1px 4px; border-radius: 4px; }
+  .tag.pk { background: var(--accent-soft); color: var(--accent-ink); border: 1px solid var(--accent); }
+  .tag.fk { background: var(--fk-soft); color: var(--fk); border: 1px solid var(--fk); }
+  .tag.uk { background: var(--uk-soft); color: var(--uk); border: 1px solid var(--uk); }
+  .field-name { color: var(--ink); }
+  .field-type { color: var(--muted); text-align: right; white-space: nowrap; }
+  .entity-card footer { padding: 8px 14px 12px; font-size: .74rem; color: var(--muted); border-top: 1px dashed var(--border-soft); }
+  footer.doc-foot { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--border); font-size: .76rem; color: var(--muted); }
+  @media (max-width: 640px) { .page { padding: 32px 16px 64px; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="doc-head">
+    <span class="eyebrow">Database schema reference — offline copy</span>
+    <h1>Project Management System — Entity Relationship Diagram</h1>
+    <p class="doc-sub">
+      PostgreSQL schema behind the NestJS + TypeORM backend: admin-owned projects (boards),
+      board membership, columns, tasks, multi-user task assignment, and notifications.
+    </p>
+    <div class="meta-row">
+      <span>Engine <b>PostgreSQL</b></span>
+      <span>ORM <b>TypeORM (synchronize)</b></span>
+      <span>Tables <b>7</b></span>
+      <span>Primary keys <b>UUID</b></span>
+    </div>
+  </header>
+
+  <section id="diagram">
+    <h2>Diagram</h2>
+    <p class="section-note">Solid lines are real foreign keys enforced by TypeORM; the one dashed line is a plain column with no DB constraint. Arrowheads point from the "one" side to the "many" side.</p>
+    <div class="diagram-card">
+<svg viewBox="0 0 1180 844" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, Consolas, monospace">
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
+      <path d="M0,0 L8,3.5 L0,7 Z" fill="#3a4653"/>
+    </marker>
+    <marker id="arrowSoft" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
+      <path d="M0,0 L8,3.5 L0,7 Z" fill="#93a0b0"/>
+    </marker>
+  </defs>
+
+  <style>
+    .hdr-core { fill: #2f6f62; }
+    .hdr-join { fill: #5b6675; }
+    .hdrtxt { fill: #ffffff; font-size: 13px; font-weight: 700; }
+    .subtxt { fill: #d8e6e2; font-size: 9px; letter-spacing: .04em; }
+    .box { fill: #ffffff; stroke: #d7dee6; stroke-width: 1; }
+    .rowline { stroke: #edf0f3; stroke-width: 1; }
+    .fname { fill: #1b2430; font-size: 12.5px; }
+    .ftype { fill: #7c8798; font-size: 10.5px; }
+    .badge { font-size: 8px; font-weight: 700; }
+    .pkb { fill: #e3efec; stroke: #2f6f62; }
+    .pkt { fill: #1f4a41; }
+    .fkb { fill: #f4ead9; stroke: #8a5a2b; }
+    .fkt { fill: #8a5a2b; }
+    .ukb { fill: #e6ecf6; stroke: #3f5f8a; }
+    .ukt { fill: #3f5f8a; }
+    .edge { fill: none; stroke: #3a4653; stroke-width: 1.4; }
+    .edgeSoft { fill: none; stroke: #93a0b0; stroke-width: 1.4; stroke-dasharray: 5 4; }
+    .elabel { fill: #5f6b7a; font-family: ui-sans-serif, sans-serif; font-size: 10.5px; font-style: italic; }
+    .elabelbg { fill: #ffffff; opacity: .9; }
+  </style>
+
+  <!-- ================= BOXES ================= -->
+
+  <!-- USERS -->
+  <g>
+    <rect class="box" x="40" y="40" width="300" height="158" rx="8"/>
+    <rect class="hdr-core" x="40" y="40" width="300" height="32" rx="8"/>
+    <rect class="hdr-core" x="40" y="56" width="300" height="16"/>
+    <text class="hdrtxt" x="54" y="61">users</text>
+    <text class="subtxt" x="252" y="61">core entity</text>
+    <line class="rowline" x1="40" y1="90" x2="340" y2="90"/>
+    <line class="rowline" x1="40" y1="108" x2="340" y2="108"/>
+    <line class="rowline" x1="40" y1="126" x2="340" y2="126"/>
+    <line class="rowline" x1="40" y1="144" x2="340" y2="144"/>
+    <line class="rowline" x1="40" y1="162" x2="340" y2="162"/>
+    <line class="rowline" x1="40" y1="180" x2="340" y2="180"/>
+
+    <rect class="pkb" x="50" y="76" width="18" height="12" rx="3"/><text class="badge pkt" x="54" y="85">PK</text>
+    <text class="fname" x="76" y="86">id</text><text class="ftype" x="330" y="86" text-anchor="end">uuid</text>
+
+    <text class="fname" x="76" y="104">name</text><text class="ftype" x="330" y="104" text-anchor="end">varchar</text>
+
+    <rect class="ukb" x="50" y="112" width="18" height="12" rx="3"/><text class="badge ukt" x="53" y="121">UK</text>
+    <text class="fname" x="76" y="122">email</text><text class="ftype" x="330" y="122" text-anchor="end">varchar</text>
+
+    <text class="fname" x="76" y="140">password</text><text class="ftype" x="330" y="140" text-anchor="end">varchar (hashed)</text>
+
+    <text class="fname" x="76" y="158">role</text><text class="ftype" x="330" y="158" text-anchor="end">enum</text>
+
+    <text class="fname" x="76" y="176">avatar</text><text class="ftype" x="330" y="176" text-anchor="end">varchar?</text>
+
+    <text class="fname" x="76" y="194">createdAt +1</text><text class="ftype" x="330" y="194" text-anchor="end">timestamp</text>
+  </g>
+
+  <!-- BOARDS -->
+  <g>
+    <rect class="box" x="440" y="40" width="300" height="122" rx="8"/>
+    <rect class="hdr-core" x="440" y="40" width="300" height="32" rx="8"/>
+    <rect class="hdr-core" x="440" y="56" width="300" height="16"/>
+    <text class="hdrtxt" x="454" y="61">boards</text>
+    <text class="subtxt" x="616" y="61">"project"</text>
+    <line class="rowline" x1="440" y1="90" x2="740" y2="90"/>
+    <line class="rowline" x1="440" y1="108" x2="740" y2="108"/>
+    <line class="rowline" x1="440" y1="126" x2="740" y2="126"/>
+    <line class="rowline" x1="440" y1="144" x2="740" y2="144"/>
+
+    <rect class="pkb" x="450" y="76" width="18" height="12" rx="3"/><text class="badge pkt" x="454" y="85">PK</text>
+    <text class="fname" x="476" y="86">id</text><text class="ftype" x="730" y="86" text-anchor="end">uuid</text>
+
+    <text class="fname" x="476" y="104">title</text><text class="ftype" x="730" y="104" text-anchor="end">varchar</text>
+
+    <text class="fname" x="476" y="122">description</text><text class="ftype" x="730" y="122" text-anchor="end">text?</text>
+
+    <rect class="fkb" x="450" y="130" width="18" height="12" rx="3"/><text class="badge fkt" x="453" y="139">FK</text>
+    <text class="fname" x="476" y="140">ownerId</text><text class="ftype" x="730" y="140" text-anchor="end">&#8594; users</text>
+
+    <text class="fname" x="476" y="158">createdAt +1</text><text class="ftype" x="730" y="158" text-anchor="end">timestamp</text>
+  </g>
+
+  <!-- BOARD_COLUMNS -->
+  <g>
+    <rect class="box" x="840" y="40" width="300" height="122" rx="8"/>
+    <rect class="hdr-core" x="840" y="40" width="300" height="32" rx="8"/>
+    <rect class="hdr-core" x="840" y="56" width="300" height="16"/>
+    <text class="hdrtxt" x="854" y="61">board_columns</text>
+    <text class="subtxt" x="1032" y="61">kanban column</text>
+    <line class="rowline" x1="840" y1="90" x2="1140" y2="90"/>
+    <line class="rowline" x1="840" y1="108" x2="1140" y2="108"/>
+    <line class="rowline" x1="840" y1="126" x2="1140" y2="126"/>
+    <line class="rowline" x1="840" y1="144" x2="1140" y2="144"/>
+
+    <rect class="pkb" x="850" y="76" width="18" height="12" rx="3"/><text class="badge pkt" x="854" y="85">PK</text>
+    <text class="fname" x="876" y="86">id</text><text class="ftype" x="1130" y="86" text-anchor="end">uuid</text>
+
+    <text class="fname" x="876" y="104">title</text><text class="ftype" x="1130" y="104" text-anchor="end">varchar</text>
+
+    <text class="fname" x="876" y="122">order</text><text class="ftype" x="1130" y="122" text-anchor="end">int</text>
+
+    <rect class="fkb" x="850" y="130" width="18" height="12" rx="3"/><text class="badge fkt" x="853" y="139">FK</text>
+    <text class="fname" x="876" y="140">boardId</text><text class="ftype" x="1130" y="140" text-anchor="end">&#8594; boards</text>
+
+    <text class="fname" x="876" y="158">createdAt +1</text><text class="ftype" x="1130" y="158" text-anchor="end">timestamp</text>
+  </g>
+
+  <!-- BOARD_MEMBERS -->
+  <g>
+    <rect class="box" x="440" y="298" width="300" height="104" rx="8"/>
+    <rect class="hdr-join" x="440" y="298" width="300" height="32" rx="8"/>
+    <rect class="hdr-join" x="440" y="314" width="300" height="16"/>
+    <text class="hdrtxt" x="454" y="319">board_members</text>
+    <text class="subtxt" x="622" y="319">join table</text>
+    <line class="rowline" x1="440" y1="348" x2="740" y2="348"/>
+    <line class="rowline" x1="440" y1="366" x2="740" y2="366"/>
+    <line class="rowline" x1="440" y1="384" x2="740" y2="384"/>
+
+    <rect class="pkb" x="450" y="334" width="18" height="12" rx="3"/><text class="badge pkt" x="454" y="343">PK</text>
+    <text class="fname" x="476" y="344">id</text><text class="ftype" x="730" y="344" text-anchor="end">uuid</text>
+
+    <rect class="fkb" x="450" y="352" width="18" height="12" rx="3"/><text class="badge fkt" x="453" y="361">FK</text>
+    <text class="fname" x="476" y="362">boardId</text><text class="ftype" x="730" y="362" text-anchor="end">&#8594; boards</text>
+
+    <rect class="fkb" x="450" y="370" width="18" height="12" rx="3"/><text class="badge fkt" x="453" y="379">FK</text>
+    <text class="fname" x="476" y="380">userId</text><text class="ftype" x="730" y="380" text-anchor="end">&#8594; users</text>
+
+    <text class="fname" x="476" y="398">createdAt</text><text class="ftype" x="730" y="398" text-anchor="end">timestamp</text>
+  </g>
+  <text class="elabel" x="600" y="292" text-anchor="middle">unique(boardId, userId)</text>
+
+  <!-- TASKS -->
+  <g>
+    <rect class="box" x="840" y="298" width="300" height="230" rx="8"/>
+    <rect class="hdr-core" x="840" y="298" width="300" height="32" rx="8"/>
+    <rect class="hdr-core" x="840" y="314" width="300" height="16"/>
+    <text class="hdrtxt" x="854" y="319">tasks</text>
+    <text class="subtxt" x="1004" y="319">core entity</text>
+    <line class="rowline" x1="840" y1="348" x2="1140" y2="348"/>
+    <line class="rowline" x1="840" y1="366" x2="1140" y2="366"/>
+    <line class="rowline" x1="840" y1="384" x2="1140" y2="384"/>
+    <line class="rowline" x1="840" y1="402" x2="1140" y2="402"/>
+    <line class="rowline" x1="840" y1="420" x2="1140" y2="420"/>
+    <line class="rowline" x1="840" y1="438" x2="1140" y2="438"/>
+    <line class="rowline" x1="840" y1="456" x2="1140" y2="456"/>
+    <line class="rowline" x1="840" y1="474" x2="1140" y2="474"/>
+    <line class="rowline" x1="840" y1="492" x2="1140" y2="492"/>
+    <line class="rowline" x1="840" y1="510" x2="1140" y2="510"/>
+
+    <rect class="pkb" x="850" y="334" width="18" height="12" rx="3"/><text class="badge pkt" x="854" y="343">PK</text>
+    <text class="fname" x="876" y="344">id</text><text class="ftype" x="1130" y="344" text-anchor="end">uuid</text>
+
+    <text class="fname" x="876" y="362">title</text><text class="ftype" x="1130" y="362" text-anchor="end">varchar</text>
+
+    <text class="fname" x="876" y="380">description</text><text class="ftype" x="1130" y="380" text-anchor="end">text?</text>
+
+    <text class="fname" x="876" y="398">priority</text><text class="ftype" x="1130" y="398" text-anchor="end">enum</text>
+
+    <text class="fname" x="876" y="416">status</text><text class="ftype" x="1130" y="416" text-anchor="end">enum</text>
+
+    <text class="fname" x="876" y="434">order</text><text class="ftype" x="1130" y="434" text-anchor="end">int</text>
+
+    <rect class="fkb" x="850" y="442" width="18" height="12" rx="3"/><text class="badge fkt" x="853" y="451">FK</text>
+    <text class="fname" x="876" y="452">columnId</text><text class="ftype" x="1130" y="452" text-anchor="end">&#8594; board_columns</text>
+
+    <text class="fname" x="876" y="470">boardId</text><text class="ftype" x="1130" y="470" text-anchor="end">uuid, no FK*</text>
+
+    <rect class="fkb" x="850" y="478" width="18" height="12" rx="3"/><text class="badge fkt" x="853" y="487">FK</text>
+    <text class="fname" x="876" y="488">createdById</text><text class="ftype" x="1130" y="488" text-anchor="end">&#8594; users?</text>
+
+    <text class="fname" x="876" y="506">dueDate</text><text class="ftype" x="1130" y="506" text-anchor="end">date?</text>
+
+    <text class="fname" x="876" y="524">createdAt +3</text><text class="ftype" x="1130" y="524" text-anchor="end">timestamp</text>
+  </g>
+
+  <!-- TASK_ASSIGNEES -->
+  <g>
+    <rect class="box" x="840" y="628" width="300" height="104" rx="8"/>
+    <rect class="hdr-join" x="840" y="628" width="300" height="32" rx="8"/>
+    <rect class="hdr-join" x="840" y="644" width="300" height="16"/>
+    <text class="hdrtxt" x="854" y="649">task_assignees</text>
+    <text class="subtxt" x="1034" y="649">join table</text>
+    <line class="rowline" x1="840" y1="678" x2="1140" y2="678"/>
+    <line class="rowline" x1="840" y1="696" x2="1140" y2="696"/>
+    <line class="rowline" x1="840" y1="714" x2="1140" y2="714"/>
+
+    <rect class="pkb" x="850" y="664" width="18" height="12" rx="3"/><text class="badge pkt" x="854" y="673">PK</text>
+    <text class="fname" x="876" y="674">id</text><text class="ftype" x="1130" y="674" text-anchor="end">uuid</text>
+
+    <rect class="fkb" x="850" y="682" width="18" height="12" rx="3"/><text class="badge fkt" x="853" y="691">FK</text>
+    <text class="fname" x="876" y="692">taskId</text><text class="ftype" x="1130" y="692" text-anchor="end">&#8594; tasks</text>
+
+    <rect class="fkb" x="850" y="700" width="18" height="12" rx="3"/><text class="badge fkt" x="853" y="709">FK</text>
+    <text class="fname" x="876" y="710">userId</text><text class="ftype" x="1130" y="710" text-anchor="end">&#8594; users</text>
+
+    <text class="fname" x="876" y="728">createdAt</text><text class="ftype" x="1130" y="728" text-anchor="end">timestamp</text>
+  </g>
+  <rect class="elabelbg" x="912" y="592" width="156" height="13"/>
+  <text class="elabel" x="990" y="602" text-anchor="middle">unique(taskId, userId) — self + co-assign</text>
+
+  <!-- NOTIFICATIONS -->
+  <g>
+    <rect class="box" x="40" y="628" width="300" height="176" rx="8"/>
+    <rect class="hdr-core" x="40" y="628" width="300" height="32" rx="8"/>
+    <rect class="hdr-core" x="40" y="644" width="300" height="16"/>
+    <text class="hdrtxt" x="54" y="649">notifications</text>
+    <text class="subtxt" x="220" y="649">core entity</text>
+    <line class="rowline" x1="40" y1="678" x2="340" y2="678"/>
+    <line class="rowline" x1="40" y1="696" x2="340" y2="696"/>
+    <line class="rowline" x1="40" y1="714" x2="340" y2="714"/>
+    <line class="rowline" x1="40" y1="732" x2="340" y2="732"/>
+    <line class="rowline" x1="40" y1="750" x2="340" y2="750"/>
+    <line class="rowline" x1="40" y1="768" x2="340" y2="768"/>
+
+    <rect class="pkb" x="50" y="664" width="18" height="12" rx="3"/><text class="badge pkt" x="54" y="673">PK</text>
+    <text class="fname" x="76" y="674">id</text><text class="ftype" x="330" y="674" text-anchor="end">uuid</text>
+
+    <rect class="fkb" x="50" y="682" width="18" height="12" rx="3"/><text class="badge fkt" x="53" y="691">FK</text>
+    <text class="fname" x="76" y="692">userId</text><text class="ftype" x="330" y="692" text-anchor="end">&#8594; users</text>
+
+    <text class="fname" x="76" y="710">type</text><text class="ftype" x="330" y="710" text-anchor="end">enum</text>
+
+    <text class="fname" x="76" y="728">message</text><text class="ftype" x="330" y="728" text-anchor="end">varchar</text>
+
+    <text class="fname" x="76" y="746">boardId / taskId</text><text class="ftype" x="330" y="746" text-anchor="end">uuid?, no FK</text>
+
+    <text class="fname" x="76" y="764">isRead +1</text><text class="ftype" x="330" y="764" text-anchor="end">boolean</text>
+  </g>
+
+  <!-- ================= EDGES ================= -->
+
+  <path class="edge" d="M340,90 L440,90" marker-end="url(#arrow)"/>
+  <rect class="elabelbg" x="358" y="74" width="30" height="13"/>
+  <text class="elabel" x="373" y="84" text-anchor="middle">owns</text>
+
+  <path class="edge" d="M740,90 L840,90" marker-end="url(#arrow)"/>
+  <rect class="elabelbg" x="758" y="74" width="24" height="13"/>
+  <text class="elabel" x="770" y="84" text-anchor="middle">has</text>
+
+  <path class="edge" d="M590,162 L590,298" marker-end="url(#arrow)"/>
+  <rect class="elabelbg" x="575" y="222" width="30" height="13"/>
+  <text class="elabel" x="590" y="232" text-anchor="middle">has</text>
+
+  <path class="edge" d="M340,126 L440,320" marker-end="url(#arrow)"/>
+  <rect class="elabelbg" x="352" y="205" width="82" height="13"/>
+  <text class="elabel" x="393" y="215" text-anchor="middle">assigned via</text>
+
+  <path class="edge" d="M900,162 L900,298" marker-end="url(#arrow)"/>
+  <rect class="elabelbg" x="862" y="222" width="56" height="13"/>
+  <text class="elabel" x="890" y="232" text-anchor="middle">contains</text>
+
+  <path class="edgeSoft" d="M700,162 L1000,298" marker-end="url(#arrowSoft)"/>
+  <rect class="elabelbg" x="905" y="205" width="132" height="13"/>
+  <text class="elabel" x="971" y="215" text-anchor="middle">denormalized boardId*</text>
+
+  <path class="edge" d="M340,152 L1100,298" marker-end="url(#arrow)"/>
+  <rect class="elabelbg" x="914" y="255" width="72" height="13"/>
+  <text class="elabel" x="950" y="265" text-anchor="middle">created by</text>
+
+  <path class="edge" d="M990,528 L990,628" marker-end="url(#arrow)"/>
+  <rect class="elabelbg" x="975" y="568" width="24" height="13"/>
+  <text class="elabel" x="987" y="578" text-anchor="middle">has</text>
+
+  <path class="edge" d="M340,180 L380,180 L380,580 L900,580 L900,628" marker-end="url(#arrow)"/>
+  <rect class="elabelbg" x="560" y="568" width="98" height="13"/>
+  <text class="elabel" x="609" y="578" text-anchor="middle">co-assigned via</text>
+
+  <path class="edge" d="M190,198 L190,628" marker-end="url(#arrow)"/>
+  <rect class="elabelbg" x="176" y="405" width="56" height="13"/>
+  <text class="elabel" x="204" y="415" text-anchor="middle">receives</text>
+
+</svg>
+    </div>
+    <div class="legend">
+      <span class="item"><span class="swatch pk"></span>Primary key</span>
+      <span class="item"><span class="swatch fk"></span>Foreign key</span>
+      <span class="item"><span class="swatch uk"></span>Unique constraint</span>
+      <span class="item"><span class="line"></span>Enforced FK relation</span>
+      <span class="item"><span class="line dashed"></span>Plain column, no DB constraint</span>
+    </div>
+  </section>
+
+  <section id="entities">
+    <h2>Tables (full column list)</h2>
+    <p class="section-note">The diagram above trims a few audit columns to stay readable — every field is listed here, matching <span class="mono">src/*/entities/</span> exactly.</p>
+    <div class="entity-grid">
+
+      <div class="entity-card">
+        <header><span class="table-name mono">users</span><span class="row-count">8 fields</span></header>
+        <ul class="field-list">
+          <li><span class="tag pk">PK</span><span class="field-name mono">id</span><span class="field-type mono">uuid</span></li>
+          <li><span></span><span class="field-name mono">name</span><span class="field-type mono">varchar</span></li>
+          <li><span class="tag uk">UK</span><span class="field-name mono">email</span><span class="field-type mono">varchar</span></li>
+          <li><span></span><span class="field-name mono">password</span><span class="field-type mono">varchar</span></li>
+          <li><span></span><span class="field-name mono">role</span><span class="field-type mono">enum</span></li>
+          <li><span></span><span class="field-name mono">avatar</span><span class="field-type mono">varchar?</span></li>
+          <li><span></span><span class="field-name mono">createdAt</span><span class="field-type mono">timestamp</span></li>
+          <li><span></span><span class="field-name mono">updatedAt</span><span class="field-type mono">timestamp</span></li>
+        </ul>
+        <footer>role &isin; {admin, user} &middot; one admin auto-seeded on startup</footer>
+      </div>
+
+      <div class="entity-card">
+        <header><span class="table-name mono">boards</span><span class="row-count">6 fields</span></header>
+        <ul class="field-list">
+          <li><span class="tag pk">PK</span><span class="field-name mono">id</span><span class="field-type mono">uuid</span></li>
+          <li><span></span><span class="field-name mono">title</span><span class="field-type mono">varchar</span></li>
+          <li><span></span><span class="field-name mono">description</span><span class="field-type mono">text?</span></li>
+          <li><span class="tag fk">FK</span><span class="field-name mono">ownerId</span><span class="field-type mono">&#8594; users</span></li>
+          <li><span></span><span class="field-name mono">createdAt</span><span class="field-type mono">timestamp</span></li>
+          <li><span></span><span class="field-name mono">updatedAt</span><span class="field-type mono">timestamp</span></li>
+        </ul>
+        <footer>"Project" in product language &middot; only admins create/update/delete &middot; onDelete CASCADE from users</footer>
+      </div>
+
+      <div class="entity-card">
+        <header><span class="table-name mono">board_members</span><span class="row-count">4 fields</span></header>
+        <ul class="field-list">
+          <li><span class="tag pk">PK</span><span class="field-name mono">id</span><span class="field-type mono">uuid</span></li>
+          <li><span class="tag fk">FK</span><span class="field-name mono">boardId</span><span class="field-type mono">&#8594; boards</span></li>
+          <li><span class="tag fk">FK</span><span class="field-name mono">userId</span><span class="field-type mono">&#8594; users</span></li>
+          <li><span></span><span class="field-name mono">createdAt</span><span class="field-type mono">timestamp</span></li>
+        </ul>
+        <footer>UNIQUE(boardId, userId) &middot; join table for project assignment &middot; both FKs onDelete CASCADE</footer>
+      </div>
+
+      <div class="entity-card">
+        <header><span class="table-name mono">board_columns</span><span class="row-count">6 fields</span></header>
+        <ul class="field-list">
+          <li><span class="tag pk">PK</span><span class="field-name mono">id</span><span class="field-type mono">uuid</span></li>
+          <li><span></span><span class="field-name mono">title</span><span class="field-type mono">varchar</span></li>
+          <li><span></span><span class="field-name mono">order</span><span class="field-type mono">int</span></li>
+          <li><span class="tag fk">FK</span><span class="field-name mono">boardId</span><span class="field-type mono">&#8594; boards</span></li>
+          <li><span></span><span class="field-name mono">createdAt</span><span class="field-type mono">timestamp</span></li>
+          <li><span></span><span class="field-name mono">updatedAt</span><span class="field-type mono">timestamp</span></li>
+        </ul>
+        <footer>Kanban columns &middot; 3 seeded per new board (To Do / In Progress / Done) &middot; onDelete CASCADE from boards</footer>
+      </div>
+
+      <div class="entity-card">
+        <header><span class="table-name mono">tasks</span><span class="row-count">14 fields</span></header>
+        <ul class="field-list">
+          <li><span class="tag pk">PK</span><span class="field-name mono">id</span><span class="field-type mono">uuid</span></li>
+          <li><span></span><span class="field-name mono">title</span><span class="field-type mono">varchar</span></li>
+          <li><span></span><span class="field-name mono">description</span><span class="field-type mono">text?</span></li>
+          <li><span></span><span class="field-name mono">priority</span><span class="field-type mono">enum</span></li>
+          <li><span></span><span class="field-name mono">status</span><span class="field-type mono">enum</span></li>
+          <li><span></span><span class="field-name mono">order</span><span class="field-type mono">int</span></li>
+          <li><span class="tag fk">FK</span><span class="field-name mono">columnId</span><span class="field-type mono">&#8594; board_columns</span></li>
+          <li><span></span><span class="field-name mono">boardId</span><span class="field-type mono">uuid, no FK*</span></li>
+          <li><span class="tag fk">FK</span><span class="field-name mono">createdById</span><span class="field-type mono">&#8594; users?</span></li>
+          <li><span></span><span class="field-name mono">dueDate</span><span class="field-type mono">date?</span></li>
+          <li><span></span><span class="field-name mono">dueSoonNotifiedAt</span><span class="field-type mono">timestamp?</span></li>
+          <li><span></span><span class="field-name mono">overdueNotifiedAt</span><span class="field-type mono">timestamp?</span></li>
+          <li><span></span><span class="field-name mono">createdAt</span><span class="field-type mono">timestamp</span></li>
+          <li><span></span><span class="field-name mono">updatedAt</span><span class="field-type mono">timestamp</span></li>
+        </ul>
+        <footer>*boardId is a plain column (no @JoinColumn), denormalized off columnId for direct board-scoped queries &middot; assignment lives in task_assignees</footer>
+      </div>
+
+      <div class="entity-card">
+        <header><span class="table-name mono">task_assignees</span><span class="row-count">4 fields</span></header>
+        <ul class="field-list">
+          <li><span class="tag pk">PK</span><span class="field-name mono">id</span><span class="field-type mono">uuid</span></li>
+          <li><span class="tag fk">FK</span><span class="field-name mono">taskId</span><span class="field-type mono">&#8594; tasks</span></li>
+          <li><span class="tag fk">FK</span><span class="field-name mono">userId</span><span class="field-type mono">&#8594; users</span></li>
+          <li><span></span><span class="field-name mono">createdAt</span><span class="field-type mono">timestamp</span></li>
+        </ul>
+        <footer>UNIQUE(taskId, userId) &middot; self-assign + co-assign, restricted to project members &middot; both FKs onDelete CASCADE</footer>
+      </div>
+
+      <div class="entity-card">
+        <header><span class="table-name mono">notifications</span><span class="row-count">8 fields</span></header>
+        <ul class="field-list">
+          <li><span class="tag pk">PK</span><span class="field-name mono">id</span><span class="field-type mono">uuid</span></li>
+          <li><span class="tag fk">FK</span><span class="field-name mono">userId</span><span class="field-type mono">&#8594; users</span></li>
+          <li><span></span><span class="field-name mono">type</span><span class="field-type mono">enum</span></li>
+          <li><span></span><span class="field-name mono">message</span><span class="field-type mono">varchar</span></li>
+          <li><span></span><span class="field-name mono">boardId</span><span class="field-type mono">uuid?</span></li>
+          <li><span></span><span class="field-name mono">taskId</span><span class="field-type mono">uuid?</span></li>
+          <li><span></span><span class="field-name mono">isRead</span><span class="field-type mono">boolean</span></li>
+          <li><span></span><span class="field-name mono">createdAt</span><span class="field-type mono">timestamp</span></li>
+        </ul>
+        <footer>boardId/taskId are unconstrained reference ids (deep-linking), not FKs &middot; onDelete CASCADE from users</footer>
+      </div>
+
+    </div>
+  </section>
+
+  <footer class="doc-foot">
+    Generated from the TypeORM entity definitions in this repository (<span class="mono">src/*/entities/</span>).
+    Static file — no network requests, no external fonts or scripts. Open directly in any browser.
+    Schema is kept in sync via <span class="mono">DB_SYNCHRONIZE=true</span> in development; use migrations before production.
+  </footer>
+</div>
+</body>
+</html>
