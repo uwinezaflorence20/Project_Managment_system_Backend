@@ -7,12 +7,14 @@ import { BoardsService } from "./boards.service";
 import { BoardsController } from "./boards.controller";
 import { RealtimeModule } from "../realtime/realtime.module";
 import { UsersModule } from "../users/users.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Board, BoardColumn, BoardMember]),
     RealtimeModule,
     UsersModule,
+    NotificationsModule,
   ],
   controllers: [BoardsController],
   providers: [BoardsService],

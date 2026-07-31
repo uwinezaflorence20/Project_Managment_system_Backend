@@ -7,6 +7,7 @@ import { ColumnsModule } from "../columns/columns.module";
 import { BoardsModule } from "../boards/boards.module";
 import { RealtimeModule } from "../realtime/realtime.module";
 import { UsersModule } from "../users/users.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { UsersModule } from "../users/users.module";
     BoardsModule,
     RealtimeModule,
     UsersModule,
+    NotificationsModule,
   ],
   controllers: [TasksController],
   providers: [TasksService],

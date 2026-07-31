@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { ScheduleModule } from "@nestjs/schedule";
 import { UsersModule } from "./users/users.module";
 import { AuthModule } from "./auth/auth.module";
 import { BoardsModule } from "./boards/boards.module";
@@ -8,6 +9,7 @@ import { ColumnsModule } from "./columns/columns.module";
 import { TasksModule } from "./tasks/tasks.module";
 import { RealtimeModule } from "./realtime/realtime.module";
 import { AdminModule } from "./admin/admin.module";
+import { NotificationsModule } from "./notifications/notifications.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -15,6 +17,7 @@ import { HealthController } from "./health.controller";
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -35,6 +38,7 @@ import { HealthController } from "./health.controller";
     ColumnsModule,
     TasksModule,
     AdminModule,
+    NotificationsModule,
   ],
   controllers: [HealthController],
 })

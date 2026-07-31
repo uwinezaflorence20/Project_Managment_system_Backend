@@ -10,6 +10,8 @@ import { UpdateTaskDto } from "./dto/update-task.dto";
 import { MoveTaskDto } from "./dto/move-task.dto";
 import { QueryTasksDto, TaskSortBy } from "./dto/query-tasks.dto";
 import { RealtimeGateway } from "../realtime/realtime.gateway";
+import { NotificationsService } from "../notifications/notifications.service";
+import { NotificationType } from "../notifications/entities/notification.entity";
 
 const TASK_DETAIL_RELATIONS = [
   "column",
@@ -28,6 +30,7 @@ export class TasksService {
     private readonly usersService: UsersService,
     private readonly dataSource: DataSource,
     private readonly realtimeGateway: RealtimeGateway,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(
@@ -62,6 +65,7 @@ export class TasksService {
     });
     const savedTask = await this.tasksRepository.save(task);
     this.realtimeGateway.emitToBoard(column.boardId, "task:created", savedTask);
+    await this.notifyAssignment(userId, savedTask);
     return savedTask;
   }
 
@@ -155,13 +159,30 @@ export class TasksService {
     if (dto.assignedUserId) {
       await this.usersService.findById(dto.assignedUserId);
     }
+    const previousAssignedUserId = task.assignedUserId;
     Object.assign(task, {
       ...dto,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : task.dueDate,
     });
     const savedTask = await this.tasksRepository.save(task);
     this.realtimeGateway.emitToBoard(task.boardId, "task:updated", savedTask);
+    if (savedTask.assignedUserId !== previousAssignedUserId) {
+      await this.notifyAssignment(userId, savedTask);
+    }
     return savedTask;
+  }
+
+  /** Notifies the assignee, unless they assigned the task to themselves. */
+  private async notifyAssignment(actorUserId: string, task: Task): Promise<void> {
+    if (!task.assignedUserId || task.assignedUserId === actorUserId) {
+      return;
+    }
+    await this.notificationsService.create(
+      task.assignedUserId,
+      NotificationType.TASK_ASSIGNED,
+      `You were assigned to "${task.title}"`,
+      { boardId: task.boardId, taskId: task.id },
+    );
   }
 
   async remove(userId: string, taskId: string): Promise<void> {

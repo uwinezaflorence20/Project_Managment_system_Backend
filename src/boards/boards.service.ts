@@ -14,6 +14,8 @@ import { UpdateBoardDto } from "./dto/update-board.dto";
 import { AddMemberDto } from "./dto/add-member.dto";
 import { RealtimeGateway } from "../realtime/realtime.gateway";
 import { UsersService } from "../users/users.service";
+import { NotificationsService } from "../notifications/notifications.service";
+import { NotificationType } from "../notifications/entities/notification.entity";
 
 const DEFAULT_COLUMN_TITLES = ["To Do", "In Progress", "Done"];
 
@@ -28,6 +30,7 @@ export class BoardsService {
     private readonly boardMembersRepository: Repository<BoardMember>,
     private readonly usersService: UsersService,
     private readonly realtimeGateway: RealtimeGateway,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(userId: string, dto: CreateBoardDto): Promise<Board> {
@@ -52,12 +55,29 @@ export class BoardsService {
     return fullBoard;
   }
 
-  findAll(userId: string): Promise<Board[]> {
-    return this.boardsRepository
+  async findAll(userId: string): Promise<Board[]> {
+    // Two-pass: first resolve which board ids the user can see, then load
+    // full member lists for those boards. Filtering by member.userId in the
+    // same query that leftJoinAndSelect's board.members would collapse each
+    // board's member rows down to only the requesting user's own row.
+    const accessible = await this.boardsRepository
       .createQueryBuilder("board")
       .leftJoin("board.members", "member")
       .where("board.ownerId = :userId", { userId })
       .orWhere("member.userId = :userId", { userId })
+      .select("board.id", "id")
+      .getRawMany<{ id: string }>();
+
+    if (accessible.length === 0) {
+      return [];
+    }
+
+    return this.boardsRepository
+      .createQueryBuilder("board")
+      .leftJoinAndSelect("board.owner", "owner")
+      .leftJoinAndSelect("board.members", "member")
+      .leftJoinAndSelect("member.user", "memberUser")
+      .where("board.id IN (:...ids)", { ids: accessible.map((row) => row.id) })
       .orderBy("board.createdAt", "DESC")
       .getMany();
   }
@@ -67,6 +87,7 @@ export class BoardsService {
 
     const board = await this.boardsRepository
       .createQueryBuilder("board")
+      .leftJoinAndSelect("board.owner", "owner")
       .leftJoinAndSelect("board.columns", "column")
       .leftJoinAndSelect("column.tasks", "task")
       .leftJoinAndSelect("board.members", "member")
@@ -173,6 +194,12 @@ export class BoardsService {
     const fullBoard = await this.findOne(ownerId, boardId);
     this.realtimeGateway.emitToBoard(boardId, "board:member-added", fullBoard);
     this.realtimeGateway.emitToUser(user.id, "board:added", fullBoard);
+    await this.notificationsService.create(
+      user.id,
+      NotificationType.BOARD_ADDED,
+      `You were added to the board "${fullBoard.title}"`,
+      { boardId },
+    );
     return fullBoard;
   }
 

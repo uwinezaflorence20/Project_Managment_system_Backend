@@ -72,6 +72,14 @@ export class Task {
   @Column({ nullable: true })
   dueDate?: Date;
 
+  /** Set once a "due soon" notification has fired, to avoid re-notifying every cron tick. */
+  @Column({ nullable: true })
+  dueSoonNotifiedAt?: Date;
+
+  /** Set once an "overdue" notification has fired, to avoid re-notifying every cron tick. */
+  @Column({ nullable: true })
+  overdueNotifiedAt?: Date;
+
   @CreateDateColumn()
   createdAt: Date;
 
