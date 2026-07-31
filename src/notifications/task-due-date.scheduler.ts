@@ -30,22 +30,26 @@ export class TaskDueDateScheduler {
       where: {
         dueDate: Between(now, new Date(now.getTime() + DUE_SOON_WINDOW_MS)),
         dueSoonNotifiedAt: IsNull(),
-        assignedUserId: Not(IsNull()),
         status: Not(TaskStatus.DONE),
       },
+      relations: ["assignees"],
     });
 
+    let notified = 0;
     for (const task of tasks) {
-      await this.notificationsService.create(
-        task.assignedUserId as string,
-        NotificationType.TASK_DUE_SOON,
-        `"${task.title}" is due soon`,
-        { boardId: task.boardId, taskId: task.id },
-      );
+      for (const assignee of task.assignees) {
+        await this.notificationsService.create(
+          assignee.userId,
+          NotificationType.TASK_DUE_SOON,
+          `"${task.title}" is due soon`,
+          { boardId: task.boardId, taskId: task.id },
+        );
+        notified += 1;
+      }
       await this.tasksRepository.update(task.id, { dueSoonNotifiedAt: now });
     }
-    if (tasks.length > 0) {
-      this.logger.debug(`Sent ${tasks.length} due-soon notification(s)`);
+    if (notified > 0) {
+      this.logger.debug(`Sent ${notified} due-soon notification(s)`);
     }
   }
 
@@ -54,22 +58,26 @@ export class TaskDueDateScheduler {
       where: {
         dueDate: LessThan(now),
         overdueNotifiedAt: IsNull(),
-        assignedUserId: Not(IsNull()),
         status: Not(TaskStatus.DONE),
       },
+      relations: ["assignees"],
     });
 
+    let notified = 0;
     for (const task of tasks) {
-      await this.notificationsService.create(
-        task.assignedUserId as string,
-        NotificationType.TASK_OVERDUE,
-        `"${task.title}" is overdue`,
-        { boardId: task.boardId, taskId: task.id },
-      );
+      for (const assignee of task.assignees) {
+        await this.notificationsService.create(
+          assignee.userId,
+          NotificationType.TASK_OVERDUE,
+          `"${task.title}" is overdue`,
+          { boardId: task.boardId, taskId: task.id },
+        );
+        notified += 1;
+      }
       await this.tasksRepository.update(task.id, { overdueNotifiedAt: now });
     }
-    if (tasks.length > 0) {
-      this.logger.debug(`Sent ${tasks.length} overdue notification(s)`);
+    if (notified > 0) {
+      this.logger.debug(`Sent ${notified} overdue notification(s)`);
     }
   }
 }

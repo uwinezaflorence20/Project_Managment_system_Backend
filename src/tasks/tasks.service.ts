@@ -1,7 +1,12 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
 import { Task } from "./entities/task.entity";
+import { TaskAssignee } from "./entities/task-assignee.entity";
 import { ColumnsService } from "../columns/columns.service";
 import { BoardsService } from "../boards/boards.service";
 import { UsersService } from "../users/users.service";
@@ -16,7 +21,8 @@ import { NotificationType } from "../notifications/entities/notification.entity"
 const TASK_DETAIL_RELATIONS = [
   "column",
   "column.board",
-  "assignedUser",
+  "assignees",
+  "assignees.user",
   "createdBy",
 ];
 
@@ -25,6 +31,8 @@ export class TasksService {
   constructor(
     @InjectRepository(Task)
     private readonly tasksRepository: Repository<Task>,
+    @InjectRepository(TaskAssignee)
+    private readonly taskAssigneesRepository: Repository<TaskAssignee>,
     private readonly columnsService: ColumnsService,
     private readonly boardsService: BoardsService,
     private readonly usersService: UsersService,
@@ -43,9 +51,10 @@ export class TasksService {
       columnId,
     );
 
-    if (dto.assignedUserId) {
-      await this.usersService.findById(dto.assignedUserId);
-    }
+    const assigneeIds = await this.validateAssignees(
+      dto.assigneeIds,
+      column.board,
+    );
 
     const taskCount = await this.tasksRepository.count({
       where: { columnId },
@@ -57,22 +66,58 @@ export class TasksService {
       priority: dto.priority,
       status: dto.status,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
-      assignedUserId: dto.assignedUserId,
       createdById: userId,
       columnId,
       boardId: column.boardId,
       order: taskCount,
     });
     const savedTask = await this.tasksRepository.save(task);
-    this.realtimeGateway.emitToBoard(column.boardId, "task:created", savedTask);
-    await this.notifyAssignment(userId, savedTask);
-    return savedTask;
+
+    if (assigneeIds.length > 0) {
+      await this.taskAssigneesRepository.save(
+        assigneeIds.map((assigneeId) =>
+          this.taskAssigneesRepository.create({
+            taskId: savedTask.id,
+            userId: assigneeId,
+          }),
+        ),
+      );
+    }
+
+    const fullTask = await this.findOne(userId, savedTask.id);
+    this.realtimeGateway.emitToBoard(column.boardId, "task:created", fullTask);
+    await this.notifyAssignment(userId, fullTask, assigneeIds);
+    return fullTask;
+  }
+
+  /**
+   * Ensures every assignee id refers to a real user who is a collaborator
+   * (owner or member) on the task's project — co-assignment is only allowed
+   * among people already assigned to that project.
+   */
+  private async validateAssignees(
+    assigneeIds: string[] | undefined,
+    board: { id: string; ownerId: string },
+  ): Promise<string[]> {
+    if (!assigneeIds || assigneeIds.length === 0) {
+      return [];
+    }
+    const uniqueIds = Array.from(new Set(assigneeIds));
+    for (const assigneeId of uniqueIds) {
+      await this.usersService.findById(assigneeId);
+      if (!(await this.canAccessBoard(assigneeId, board))) {
+        throw new BadRequestException(
+          "Assignees must be members of this project",
+        );
+      }
+    }
+    return uniqueIds;
   }
 
   async getAccessibleTaskOrFail(userId: string, taskId: string): Promise<Task> {
     const task = await this.tasksRepository.findOne({
       where: { id: taskId },
-      relations: ["column", "column.board"],
+      relations: ["column", "column.board", "assignees"],
     });
     if (!task || !(await this.canAccessBoard(userId, task.column.board))) {
       throw new NotFoundException("Task not found");
@@ -110,7 +155,8 @@ export class TasksService {
 
     const qb = this.tasksRepository
       .createQueryBuilder("task")
-      .leftJoinAndSelect("task.assignedUser", "assignedUser")
+      .leftJoinAndSelect("task.assignees", "assignees")
+      .leftJoinAndSelect("assignees.user", "assigneeUser")
       .where("task.boardId = :boardId", { boardId });
 
     if (query.search) {
@@ -122,10 +168,13 @@ export class TasksService {
     if (query.status) {
       qb.andWhere("task.status = :status", { status: query.status });
     }
-    if (query.assignedUserId) {
-      qb.andWhere("task.assignedUserId = :assignedUserId", {
-        assignedUserId: query.assignedUserId,
-      });
+    if (query.assigneeId) {
+      // A subquery (rather than filtering the joined rows directly) keeps
+      // each matching task's full assignee list intact in the result.
+      qb.andWhere(
+        `task.id IN (SELECT "taskId" FROM task_assignees WHERE "userId" = :assigneeId)`,
+        { assigneeId: query.assigneeId },
+      );
     }
 
     switch (query.sortBy) {
@@ -156,32 +205,64 @@ export class TasksService {
     dto: UpdateTaskDto,
   ): Promise<Task> {
     const task = await this.getAccessibleTaskOrFail(userId, taskId);
-    if (dto.assignedUserId) {
-      await this.usersService.findById(dto.assignedUserId);
+    const previousAssigneeIds = new Set(
+      task.assignees.map((assignee) => assignee.userId),
+    );
+
+    let newAssigneeIds: string[] | undefined;
+    if (dto.assigneeIds !== undefined) {
+      newAssigneeIds = await this.validateAssignees(
+        dto.assigneeIds,
+        task.column.board,
+      );
     }
-    const previousAssignedUserId = task.assignedUserId;
+
+    const { assigneeIds: _assigneeIds, ...rest } = dto;
     Object.assign(task, {
-      ...dto,
+      ...rest,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : task.dueDate,
     });
     const savedTask = await this.tasksRepository.save(task);
-    this.realtimeGateway.emitToBoard(task.boardId, "task:updated", savedTask);
-    if (savedTask.assignedUserId !== previousAssignedUserId) {
-      await this.notifyAssignment(userId, savedTask);
+
+    let newlyAssignedIds: string[] = [];
+    if (newAssigneeIds !== undefined) {
+      await this.taskAssigneesRepository.delete({ taskId });
+      if (newAssigneeIds.length > 0) {
+        await this.taskAssigneesRepository.save(
+          newAssigneeIds.map((assigneeId) =>
+            this.taskAssigneesRepository.create({ taskId, userId: assigneeId }),
+          ),
+        );
+      }
+      newlyAssignedIds = newAssigneeIds.filter(
+        (id) => !previousAssigneeIds.has(id),
+      );
     }
-    return savedTask;
+
+    const fullTask = await this.findOne(userId, taskId);
+    this.realtimeGateway.emitToBoard(task.boardId, "task:updated", fullTask);
+    if (newlyAssignedIds.length > 0) {
+      await this.notifyAssignment(userId, fullTask, newlyAssignedIds);
+    }
+    return fullTask;
   }
 
-  /** Notifies the assignee, unless they assigned the task to themselves. */
-  private async notifyAssignment(actorUserId: string, task: Task): Promise<void> {
-    if (!task.assignedUserId || task.assignedUserId === actorUserId) {
-      return;
-    }
-    await this.notificationsService.create(
-      task.assignedUserId,
-      NotificationType.TASK_ASSIGNED,
-      `You were assigned to "${task.title}"`,
-      { boardId: task.boardId, taskId: task.id },
+  /** Notifies newly-added assignees, skipping anyone who assigned themselves. */
+  private async notifyAssignment(
+    actorUserId: string,
+    task: Task,
+    newlyAssignedIds: string[],
+  ): Promise<void> {
+    const recipients = newlyAssignedIds.filter((id) => id !== actorUserId);
+    await Promise.all(
+      recipients.map((assigneeId) =>
+        this.notificationsService.create(
+          assigneeId,
+          NotificationType.TASK_ASSIGNED,
+          `You were assigned to "${task.title}"`,
+          { boardId: task.boardId, taskId: task.id },
+        ),
+      ),
     );
   }
 

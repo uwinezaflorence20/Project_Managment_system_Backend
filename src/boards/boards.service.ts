@@ -33,11 +33,11 @@ export class BoardsService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  async create(userId: string, dto: CreateBoardDto): Promise<Board> {
+  async create(adminId: string, dto: CreateBoardDto): Promise<Board> {
     const board = this.boardsRepository.create({
       title: dto.title,
       description: dto.description,
-      ownerId: userId,
+      ownerId: adminId,
     });
     const savedBoard = await this.boardsRepository.save(board);
 
@@ -50,8 +50,8 @@ export class BoardsService {
     );
     await this.columnsRepository.save(defaultColumns);
 
-    const fullBoard = await this.findOne(userId, savedBoard.id);
-    this.realtimeGateway.emitToUser(userId, "board:created", fullBoard);
+    const fullBoard = await this.getFullBoard(savedBoard.id);
+    this.realtimeGateway.emitToUser(adminId, "board:created", fullBoard);
     return fullBoard;
   }
 
@@ -84,7 +84,15 @@ export class BoardsService {
 
   async findOne(userId: string, boardId: string): Promise<Board> {
     await this.getAccessibleBoardOrFail(userId, boardId);
+    return this.getFullBoard(boardId);
+  }
 
+  /**
+   * Loads a board with its full detail (owner, columns, tasks, members)
+   * without an ownership/membership check. Used by admin-only management
+   * actions, where the RolesGuard has already authorized the caller.
+   */
+  async getFullBoard(boardId: string): Promise<Board> {
     const board = await this.boardsRepository
       .createQueryBuilder("board")
       .leftJoinAndSelect("board.owner", "owner")
@@ -110,12 +118,13 @@ export class BoardsService {
   }
 
   /**
-   * Strict ownership check for actions reserved for the board owner
-   * (board settings, member management).
+   * Existence check for admin-only management actions (board settings,
+   * member management). Any admin may manage any board, not just the one
+   * who created it — role authorization is already enforced by RolesGuard.
    */
-  async getOwnedBoardOrFail(userId: string, boardId: string): Promise<Board> {
+  async getBoardOrFail(boardId: string): Promise<Board> {
     const board = await this.boardsRepository.findOne({
-      where: { id: boardId, ownerId: userId },
+      where: { id: boardId },
     });
     if (!board) {
       throw new NotFoundException("Board not found");
@@ -147,32 +156,32 @@ export class BoardsService {
   }
 
   async update(
-    userId: string,
+    adminId: string,
     boardId: string,
     dto: UpdateBoardDto,
   ): Promise<Board> {
-    const board = await this.getOwnedBoardOrFail(userId, boardId);
+    const board = await this.getBoardOrFail(boardId);
     Object.assign(board, dto);
     await this.boardsRepository.save(board);
-    const fullBoard = await this.findOne(userId, boardId);
-    this.realtimeGateway.emitToUser(userId, "board:updated", fullBoard);
+    const fullBoard = await this.getFullBoard(boardId);
+    this.realtimeGateway.emitToUser(adminId, "board:updated", fullBoard);
     this.realtimeGateway.emitToBoard(boardId, "board:updated", fullBoard);
     return fullBoard;
   }
 
-  async remove(userId: string, boardId: string): Promise<void> {
-    const board = await this.getOwnedBoardOrFail(userId, boardId);
+  async remove(adminId: string, boardId: string): Promise<void> {
+    const board = await this.getBoardOrFail(boardId);
     await this.boardsRepository.remove(board);
-    this.realtimeGateway.emitToUser(userId, "board:deleted", { boardId });
+    this.realtimeGateway.emitToUser(adminId, "board:deleted", { boardId });
     this.realtimeGateway.emitToBoard(boardId, "board:deleted", { boardId });
   }
 
   async addMember(
-    ownerId: string,
+    adminId: string,
     boardId: string,
     dto: AddMemberDto,
   ): Promise<Board> {
-    const board = await this.getOwnedBoardOrFail(ownerId, boardId);
+    const board = await this.getBoardOrFail(boardId);
 
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {
@@ -191,7 +200,7 @@ export class BoardsService {
     });
     await this.boardMembersRepository.save(member);
 
-    const fullBoard = await this.findOne(ownerId, boardId);
+    const fullBoard = await this.getFullBoard(boardId);
     this.realtimeGateway.emitToBoard(boardId, "board:member-added", fullBoard);
     this.realtimeGateway.emitToUser(user.id, "board:added", fullBoard);
     await this.notificationsService.create(
@@ -204,11 +213,11 @@ export class BoardsService {
   }
 
   async removeMember(
-    ownerId: string,
+    adminId: string,
     boardId: string,
     memberUserId: string,
   ): Promise<Board> {
-    await this.getOwnedBoardOrFail(ownerId, boardId);
+    await this.getBoardOrFail(boardId);
 
     const member = await this.boardMembersRepository.findOne({
       where: { boardId, userId: memberUserId },
@@ -218,7 +227,7 @@ export class BoardsService {
     }
     await this.boardMembersRepository.remove(member);
 
-    const fullBoard = await this.findOne(ownerId, boardId);
+    const fullBoard = await this.getFullBoard(boardId);
     this.realtimeGateway.emitToBoard(boardId, "board:member-removed", {
       boardId,
       userId: memberUserId,

@@ -27,10 +27,10 @@ export class QueryTasksDto {
   @IsEnum(TaskStatus)
   status?: TaskStatus;
 
-  @ApiPropertyOptional({ description: "Filter by assigned user id" })
+  @ApiPropertyOptional({ description: "Filter by assignee user id" })
   @IsOptional()
   @IsUUID()
-  assignedUserId?: string;
+  assigneeId?: string;
 
   @ApiPropertyOptional({ enum: TaskSortBy, default: TaskSortBy.NEWEST })
   @IsOptional()

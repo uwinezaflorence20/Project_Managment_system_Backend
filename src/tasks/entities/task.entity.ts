@@ -4,11 +4,13 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
 import { BoardColumn } from "../../columns/entities/column.entity";
 import { User } from "../../users/entities/user.entity";
+import { TaskAssignee } from "./task-assignee.entity";
 
 export enum TaskPriority {
   LOW = "low",
@@ -55,12 +57,10 @@ export class Task {
   @Column()
   boardId: string;
 
-  @ManyToOne(() => User, { onDelete: "SET NULL", nullable: true })
-  @JoinColumn({ name: "assignedUserId" })
-  assignedUser?: User;
-
-  @Column({ nullable: true })
-  assignedUserId?: string;
+  @OneToMany(() => TaskAssignee, (assignee) => assignee.task, {
+    cascade: true,
+  })
+  assignees: TaskAssignee[];
 
   @ManyToOne(() => User, { onDelete: "SET NULL", nullable: true })
   @JoinColumn({ name: "createdById" })
