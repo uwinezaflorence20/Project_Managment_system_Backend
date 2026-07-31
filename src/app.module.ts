@@ -7,6 +7,7 @@ import { BoardsModule } from "./boards/boards.module";
 import { ColumnsModule } from "./columns/columns.module";
 import { TasksModule } from "./tasks/tasks.module";
 import { RealtimeModule } from "./realtime/realtime.module";
+import { AdminModule } from "./admin/admin.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -33,6 +34,7 @@ import { HealthController } from "./health.controller";
     BoardsModule,
     ColumnsModule,
     TasksModule,
+    AdminModule,
   ],
   controllers: [HealthController],
 })
