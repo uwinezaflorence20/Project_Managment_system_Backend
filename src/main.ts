@@ -25,13 +25,16 @@ async function bootstrap() {
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
+  const corsOrigin = corsOrigins.includes("*")
+    ? true
+    : corsOrigins.length > 0
+      ? corsOrigins
+      : true;
   app.enableCors({
-    origin: corsOrigins.length > 0 ? corsOrigins : true,
+    origin: corsOrigin,
     credentials: true,
   });
-  app.useWebSocketAdapter(
-    new SocketIoAdapter(app, corsOrigins.length > 0 ? corsOrigins : true),
-  );
+  app.useWebSocketAdapter(new SocketIoAdapter(app, corsOrigin));
 
   app.setGlobalPrefix("api");
 
