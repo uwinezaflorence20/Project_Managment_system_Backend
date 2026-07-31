@@ -15,6 +15,7 @@ import { User } from "../users/entities/user.entity";
 import { BoardsService } from "./boards.service";
 import { CreateBoardDto } from "./dto/create-board.dto";
 import { UpdateBoardDto } from "./dto/update-board.dto";
+import { AddMemberDto } from "./dto/add-member.dto";
 
 @ApiTags("boards")
 @ApiBearerAuth()
@@ -50,5 +51,23 @@ export class BoardsController {
   @Delete(":id")
   remove(@CurrentUser() user: User, @Param("id") id: string) {
     return this.boardsService.remove(user.id, id);
+  }
+
+  @Post(":id/members")
+  addMember(
+    @CurrentUser() user: User,
+    @Param("id") id: string,
+    @Body() dto: AddMemberDto,
+  ) {
+    return this.boardsService.addMember(user.id, id, dto);
+  }
+
+  @Delete(":id/members/:userId")
+  removeMember(
+    @CurrentUser() user: User,
+    @Param("id") id: string,
+    @Param("userId") userId: string,
+  ) {
+    return this.boardsService.removeMember(user.id, id, userId);
   }
 }

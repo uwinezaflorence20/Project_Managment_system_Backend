@@ -35,7 +35,7 @@ export class TasksService {
     columnId: string,
     dto: CreateTaskDto,
   ): Promise<Task> {
-    const column = await this.columnsService.getOwnedColumnOrFail(
+    const column = await this.columnsService.getAccessibleColumnOrFail(
       userId,
       columnId,
     );
@@ -65,12 +65,12 @@ export class TasksService {
     return savedTask;
   }
 
-  async getOwnedTaskOrFail(userId: string, taskId: string): Promise<Task> {
+  async getAccessibleTaskOrFail(userId: string, taskId: string): Promise<Task> {
     const task = await this.tasksRepository.findOne({
       where: { id: taskId },
       relations: ["column", "column.board"],
     });
-    if (!task || task.column.board.ownerId !== userId) {
+    if (!task || !(await this.canAccessBoard(userId, task.column.board))) {
       throw new NotFoundException("Task not found");
     }
     return task;
@@ -81,10 +81,20 @@ export class TasksService {
       where: { id: taskId },
       relations: TASK_DETAIL_RELATIONS,
     });
-    if (!task || task.column.board.ownerId !== userId) {
+    if (!task || !(await this.canAccessBoard(userId, task.column.board))) {
       throw new NotFoundException("Task not found");
     }
     return task;
+  }
+
+  private async canAccessBoard(
+    userId: string,
+    board: { id: string; ownerId: string },
+  ): Promise<boolean> {
+    if (board.ownerId === userId) {
+      return true;
+    }
+    return this.boardsService.isBoardMember(userId, board.id);
   }
 
   async findAll(
@@ -92,7 +102,7 @@ export class TasksService {
     boardId: string,
     query: QueryTasksDto,
   ): Promise<Task[]> {
-    await this.boardsService.getOwnedBoardOrFail(userId, boardId);
+    await this.boardsService.getAccessibleBoardOrFail(userId, boardId);
 
     const qb = this.tasksRepository
       .createQueryBuilder("task")
@@ -141,7 +151,7 @@ export class TasksService {
     taskId: string,
     dto: UpdateTaskDto,
   ): Promise<Task> {
-    const task = await this.getOwnedTaskOrFail(userId, taskId);
+    const task = await this.getAccessibleTaskOrFail(userId, taskId);
     if (dto.assignedUserId) {
       await this.usersService.findById(dto.assignedUserId);
     }
@@ -155,7 +165,7 @@ export class TasksService {
   }
 
   async remove(userId: string, taskId: string): Promise<void> {
-    const task = await this.getOwnedTaskOrFail(userId, taskId);
+    const task = await this.getAccessibleTaskOrFail(userId, taskId);
     await this.tasksRepository.remove(task);
     this.realtimeGateway.emitToBoard(task.boardId, "task:deleted", {
       taskId,
@@ -169,8 +179,8 @@ export class TasksService {
    * that ordering stays gap-free and consistent for both columns involved.
    */
   async move(userId: string, taskId: string, dto: MoveTaskDto): Promise<Task> {
-    const task = await this.getOwnedTaskOrFail(userId, taskId);
-    const targetColumn = await this.columnsService.getOwnedColumnOrFail(
+    const task = await this.getAccessibleTaskOrFail(userId, taskId);
+    const targetColumn = await this.columnsService.getAccessibleColumnOrFail(
       userId,
       dto.targetColumnId,
     );
@@ -201,7 +211,7 @@ export class TasksService {
 
       // Use targeted column updates rather than entity.save() here: `task`
       // still carries the stale `column` relation loaded in
-      // getOwnedTaskOrFail, and TypeORM's save() would resolve the FK from
+      // getAccessibleTaskOrFail, and TypeORM's save() would resolve the FK from
       // that relation object, silently overwriting the new columnId.
       await Promise.all(
         remainingTargetTasks.map((t, index) =>

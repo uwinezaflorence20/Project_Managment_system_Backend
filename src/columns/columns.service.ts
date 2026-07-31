@@ -26,7 +26,7 @@ export class ColumnsService {
     boardId: string,
     dto: CreateColumnDto,
   ): Promise<BoardColumn> {
-    await this.boardsService.getOwnedBoardOrFail(userId, boardId);
+    await this.boardsService.getAccessibleBoardOrFail(userId, boardId);
 
     const columnCount = await this.columnsRepository.count({
       where: { boardId },
@@ -46,7 +46,7 @@ export class ColumnsService {
     userId: string,
     boardId: string,
   ): Promise<BoardColumn[]> {
-    await this.boardsService.getOwnedBoardOrFail(userId, boardId);
+    await this.boardsService.getAccessibleBoardOrFail(userId, boardId);
     return this.columnsRepository.find({
       where: { boardId },
       order: { order: "ASC" },
@@ -55,10 +55,11 @@ export class ColumnsService {
   }
 
   /**
-   * Loads a column and verifies (via its board) that it belongs to the user.
-   * Used by TasksService before mutating tasks within a column.
+   * Loads a column and verifies (via its board) that the user can access it,
+   * either as owner or as a board member. Used by TasksService before
+   * mutating tasks within a column.
    */
-  async getOwnedColumnOrFail(
+  async getAccessibleColumnOrFail(
     userId: string,
     columnId: string,
   ): Promise<BoardColumn> {
@@ -66,7 +67,13 @@ export class ColumnsService {
       where: { id: columnId },
       relations: ["board"],
     });
-    if (!column || column.board.ownerId !== userId) {
+    if (!column) {
+      throw new NotFoundException("Column not found");
+    }
+    if (
+      column.board.ownerId !== userId &&
+      !(await this.boardsService.isBoardMember(userId, column.boardId))
+    ) {
       throw new NotFoundException("Column not found");
     }
     return column;
@@ -78,7 +85,7 @@ export class ColumnsService {
     columnId: string,
     dto: UpdateColumnDto,
   ): Promise<BoardColumn> {
-    await this.boardsService.getOwnedBoardOrFail(userId, boardId);
+    await this.boardsService.getAccessibleBoardOrFail(userId, boardId);
     const column = await this.columnsRepository.findOne({
       where: { id: columnId, boardId },
     });
@@ -96,7 +103,7 @@ export class ColumnsService {
     boardId: string,
     columnId: string,
   ): Promise<void> {
-    await this.boardsService.getOwnedBoardOrFail(userId, boardId);
+    await this.boardsService.getAccessibleBoardOrFail(userId, boardId);
     const column = await this.columnsRepository.findOne({
       where: { id: columnId, boardId },
     });
@@ -112,7 +119,7 @@ export class ColumnsService {
     boardId: string,
     dto: ReorderColumnsDto,
   ): Promise<BoardColumn[]> {
-    await this.boardsService.getOwnedBoardOrFail(userId, boardId);
+    await this.boardsService.getAccessibleBoardOrFail(userId, boardId);
 
     const columns = await this.columnsRepository.find({ where: { boardId } });
     if (columns.length !== dto.orderedColumnIds.length) {
