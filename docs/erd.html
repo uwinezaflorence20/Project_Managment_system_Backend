@@ -96,7 +96,7 @@
     <span class="eyebrow">Database schema reference — offline copy</span>
     <h1>Project Management System — Entity Relationship Diagram</h1>
     <p class="doc-sub">
-      PostgreSQL schema behind the NestJS + TypeORM backend: admin-owned projects (boards),
+      PostgreSQL schema behind the NestJS + TypeORM backend: user-owned projects (boards),
       board membership, columns, tasks, multi-user task assignment, and notifications.
     </p>
     <div class="meta-row">
@@ -431,7 +431,7 @@
           <li><span></span><span class="field-name mono">createdAt</span><span class="field-type mono">timestamp</span></li>
           <li><span></span><span class="field-name mono">updatedAt</span><span class="field-type mono">timestamp</span></li>
         </ul>
-        <footer>"Project" in product language &middot; only admins create/update/delete &middot; onDelete CASCADE from users</footer>
+        <footer>"Project" in product language &middot; created and managed by its owner &middot; admins can moderate any board &middot; onDelete CASCADE from users</footer>
       </div>
 
       <div class="entity-card">

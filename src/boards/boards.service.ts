@@ -33,11 +33,11 @@ export class BoardsService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  async create(adminId: string, dto: CreateBoardDto): Promise<Board> {
+  async create(userId: string, dto: CreateBoardDto): Promise<Board> {
     const board = this.boardsRepository.create({
       title: dto.title,
       description: dto.description,
-      ownerId: adminId,
+      ownerId: userId,
     });
     const savedBoard = await this.boardsRepository.save(board);
 
@@ -51,7 +51,7 @@ export class BoardsService {
     await this.columnsRepository.save(defaultColumns);
 
     const fullBoard = await this.getFullBoard(savedBoard.id);
-    this.realtimeGateway.emitToUser(adminId, "board:created", fullBoard);
+    this.realtimeGateway.emitToUser(userId, "board:created", fullBoard);
     return fullBoard;
   }
 
@@ -88,9 +88,8 @@ export class BoardsService {
   }
 
   /**
-   * Loads a board with its full detail (owner, columns, tasks, members)
-   * without an ownership/membership check. Used by admin-only management
-   * actions, where the RolesGuard has already authorized the caller.
+   * Loads a board with its full detail (owner, columns, tasks, members).
+   * Callers are responsible for checking access first.
    */
   async getFullBoard(boardId: string): Promise<Board> {
     const board = await this.boardsRepository
@@ -118,13 +117,12 @@ export class BoardsService {
   }
 
   /**
-   * Existence check for admin-only management actions (board settings,
-   * member management). Any admin may manage any board, not just the one
-   * who created it — role authorization is already enforced by RolesGuard.
+   * Strict ownership check for actions reserved for the board owner
+   * (board settings, member management).
    */
-  async getBoardOrFail(boardId: string): Promise<Board> {
+  async getOwnedBoardOrFail(userId: string, boardId: string): Promise<Board> {
     const board = await this.boardsRepository.findOne({
-      where: { id: boardId },
+      where: { id: boardId, ownerId: userId },
     });
     if (!board) {
       throw new NotFoundException("Board not found");
@@ -156,32 +154,32 @@ export class BoardsService {
   }
 
   async update(
-    adminId: string,
+    userId: string,
     boardId: string,
     dto: UpdateBoardDto,
   ): Promise<Board> {
-    const board = await this.getBoardOrFail(boardId);
+    const board = await this.getOwnedBoardOrFail(userId, boardId);
     Object.assign(board, dto);
     await this.boardsRepository.save(board);
     const fullBoard = await this.getFullBoard(boardId);
-    this.realtimeGateway.emitToUser(adminId, "board:updated", fullBoard);
+    this.realtimeGateway.emitToUser(userId, "board:updated", fullBoard);
     this.realtimeGateway.emitToBoard(boardId, "board:updated", fullBoard);
     return fullBoard;
   }
 
-  async remove(adminId: string, boardId: string): Promise<void> {
-    const board = await this.getBoardOrFail(boardId);
+  async remove(userId: string, boardId: string): Promise<void> {
+    const board = await this.getOwnedBoardOrFail(userId, boardId);
     await this.boardsRepository.remove(board);
-    this.realtimeGateway.emitToUser(adminId, "board:deleted", { boardId });
+    this.realtimeGateway.emitToUser(userId, "board:deleted", { boardId });
     this.realtimeGateway.emitToBoard(boardId, "board:deleted", { boardId });
   }
 
   async addMember(
-    adminId: string,
+    ownerId: string,
     boardId: string,
     dto: AddMemberDto,
   ): Promise<Board> {
-    const board = await this.getBoardOrFail(boardId);
+    const board = await this.getOwnedBoardOrFail(ownerId, boardId);
 
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {
@@ -213,11 +211,11 @@ export class BoardsService {
   }
 
   async removeMember(
-    adminId: string,
+    ownerId: string,
     boardId: string,
     memberUserId: string,
   ): Promise<Board> {
-    await this.getBoardOrFail(boardId);
+    await this.getOwnedBoardOrFail(ownerId, boardId);
 
     const member = await this.boardMembersRepository.findOne({
       where: { boardId, userId: memberUserId },

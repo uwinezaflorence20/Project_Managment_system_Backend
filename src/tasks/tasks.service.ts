@@ -222,7 +222,7 @@ export class TasksService {
       ...rest,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : task.dueDate,
     });
-    const savedTask = await this.tasksRepository.save(task);
+    await this.tasksRepository.save(task);
 
     let newlyAssignedIds: string[] = [];
     if (newAssigneeIds !== undefined) {
