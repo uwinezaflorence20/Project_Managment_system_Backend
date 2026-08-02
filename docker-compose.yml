@@ -34,6 +34,8 @@ services:
       DB_SYNCHRONIZE: 'true'
       JWT_SECRET: ${JWT_SECRET:-change-this-to-a-long-random-string}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@pms.dev}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@12345!}
     ports:
       - '3000:3000'
 

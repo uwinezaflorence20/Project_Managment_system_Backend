@@ -53,6 +53,11 @@ export class AdminController {
     return this.adminService.findAllBoards();
   }
 
+  @Get("boards/:id")
+  getBoardDetail(@Param("id") id: string) {
+    return this.adminService.getBoardDetail(id);
+  }
+
   @Delete("boards/:id")
   removeBoard(@Param("id") id: string) {
     return this.adminService.removeBoard(id);
