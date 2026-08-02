@@ -13,6 +13,7 @@ import {
 import { Repository } from "typeorm";
 import { Server, Socket } from "socket.io";
 import { Board } from "../boards/entities/board.entity";
+import { BoardMember } from "../boards/entities/board-member.entity";
 import { JwtPayload } from "../auth/types/jwt-payload.interface";
 
 interface AuthenticatedSocket extends Socket {
@@ -42,6 +43,8 @@ export class RealtimeGateway
     private readonly jwtService: JwtService,
     @InjectRepository(Board)
     private readonly boardsRepository: Repository<Board>,
+    @InjectRepository(BoardMember)
+    private readonly boardMembersRepository: Repository<BoardMember>,
   ) {}
 
   handleConnection(client: AuthenticatedSocket) {
@@ -72,9 +75,15 @@ export class RealtimeGateway
     if (!client.data.userId) return;
 
     const board = await this.boardsRepository.findOne({
-      where: { id: boardId, ownerId: client.data.userId },
+      where: { id: boardId },
     });
-    if (!board) {
+    const isMember =
+      board &&
+      (board.ownerId === client.data.userId ||
+        (await this.boardMembersRepository.exists({
+          where: { boardId, userId: client.data.userId },
+        })));
+    if (!isMember) {
       client.emit("exception", { message: "Board not found" });
       return;
     }
