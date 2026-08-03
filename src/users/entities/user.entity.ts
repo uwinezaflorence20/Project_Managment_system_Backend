@@ -40,7 +40,7 @@ export class User {
   passwordResetTokenHash?: string | null;
 
   @Exclude()
-  @Column({ nullable: true })
+  @Column({ type: "timestamp", nullable: true })
   passwordResetExpiresAt?: Date | null;
 
   @OneToMany(() => Board, (board) => board.owner)
