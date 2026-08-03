@@ -11,6 +11,7 @@ describe("UsersService", () => {
     save: jest.Mock;
     findOne: jest.Mock;
     update: jest.Mock;
+    find: jest.Mock;
   };
 
   const baseUser = (overrides: Partial<User> = {}): User =>
@@ -32,6 +33,7 @@ describe("UsersService", () => {
       save: jest.fn(async (entity) => entity as User),
       findOne: jest.fn(),
       update: jest.fn(),
+      find: jest.fn(),
     };
     service = new UsersService(repo as unknown as Repository<User>);
   });
@@ -120,6 +122,18 @@ describe("UsersService", () => {
       expect(
         await bcrypt.compare("NewStrongPassword123", savedUser.password),
       ).toBe(true);
+    });
+  });
+
+  describe("findAll", () => {
+    it("returns users ordered by name", async () => {
+      const users = [baseUser()];
+      repo.find.mockResolvedValue(users);
+
+      const result = await service.findAll();
+
+      expect(repo.find).toHaveBeenCalledWith({ order: { name: "ASC" } });
+      expect(result).toBe(users);
     });
   });
 

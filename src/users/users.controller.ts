@@ -14,6 +14,11 @@ import { ChangePasswordDto } from "./dto/change-password.dto";
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @Get()
+  findAll() {
+    return this.usersService.findAll();
+  }
+
   @Get("profile")
   getProfile(@CurrentUser() user: User) {
     return user;
