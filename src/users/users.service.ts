@@ -82,4 +82,28 @@ export class UsersService {
     user.password = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);
     await this.usersRepository.save(user);
   }
+
+  async setPasswordResetToken(
+    id: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await this.usersRepository.update(id, {
+      passwordResetTokenHash: tokenHash,
+      passwordResetExpiresAt: expiresAt,
+    });
+  }
+
+  findByPasswordResetTokenHash(tokenHash: string): Promise<User | null> {
+    return this.usersRepository.findOne({
+      where: { passwordResetTokenHash: tokenHash },
+    });
+  }
+
+  async resetPassword(user: User, newPassword: string): Promise<void> {
+    user.password = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    user.passwordResetTokenHash = null;
+    user.passwordResetExpiresAt = null;
+    await this.usersRepository.save(user);
+  }
 }

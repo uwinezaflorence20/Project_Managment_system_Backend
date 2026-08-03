@@ -10,6 +10,7 @@ describe("UsersService", () => {
     create: jest.Mock;
     save: jest.Mock;
     findOne: jest.Mock;
+    update: jest.Mock;
   };
 
   const baseUser = (overrides: Partial<User> = {}): User =>
@@ -30,6 +31,7 @@ describe("UsersService", () => {
       create: jest.fn((data) => data as User),
       save: jest.fn(async (entity) => entity as User),
       findOne: jest.fn(),
+      update: jest.fn(),
     };
     service = new UsersService(repo as unknown as Repository<User>);
   });
@@ -118,6 +120,51 @@ describe("UsersService", () => {
       expect(
         await bcrypt.compare("NewStrongPassword123", savedUser.password),
       ).toBe(true);
+    });
+  });
+
+  describe("setPasswordResetToken", () => {
+    it("persists the token hash and expiry via update", async () => {
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+      await service.setPasswordResetToken("user-1", "a-hash", expiresAt);
+
+      expect(repo.update).toHaveBeenCalledWith("user-1", {
+        passwordResetTokenHash: "a-hash",
+        passwordResetExpiresAt: expiresAt,
+      });
+    });
+  });
+
+  describe("findByPasswordResetTokenHash", () => {
+    it("looks up the user by the stored token hash", async () => {
+      const user = baseUser();
+      repo.findOne.mockResolvedValue(user);
+
+      const result = await service.findByPasswordResetTokenHash("a-hash");
+
+      expect(repo.findOne).toHaveBeenCalledWith({
+        where: { passwordResetTokenHash: "a-hash" },
+      });
+      expect(result).toBe(user);
+    });
+  });
+
+  describe("resetPassword", () => {
+    it("hashes the new password and clears the reset token fields", async () => {
+      const user = baseUser({
+        passwordResetTokenHash: "old-hash",
+        passwordResetExpiresAt: new Date(),
+      });
+
+      await service.resetPassword(user, "NewStrongPassword456");
+
+      const savedUser = (repo.save as jest.Mock).mock.calls[0][0] as User;
+      expect(
+        await bcrypt.compare("NewStrongPassword456", savedUser.password),
+      ).toBe(true);
+      expect(savedUser.passwordResetTokenHash).toBeNull();
+      expect(savedUser.passwordResetExpiresAt).toBeNull();
     });
   });
 });

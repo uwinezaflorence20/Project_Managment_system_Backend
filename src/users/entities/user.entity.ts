@@ -35,6 +35,14 @@ export class User {
   @Column({ nullable: true })
   avatar?: string;
 
+  @Exclude()
+  @Column({ nullable: true, type: "varchar" })
+  passwordResetTokenHash?: string | null;
+
+  @Exclude()
+  @Column({ nullable: true })
+  passwordResetExpiresAt?: Date | null;
+
   @OneToMany(() => Board, (board) => board.owner)
   boards: Board[];
 
